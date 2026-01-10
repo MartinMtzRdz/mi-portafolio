@@ -2,10 +2,14 @@ class Game {
     constructor() {
         this.boardWidth = 360;
         this.boardHeight = 640;
-        this.backgroundImg = new Image();
-        this.backgroundImg.src = "./imagenes/fondomejorado.png";
-        this.inputLocked = false;
+
+        this.board = document.getElementById("board");
+        this.board.width = this.boardWidth;
+        this.board.height = this.boardHeight;
+        this.context = this.board.getContext("2d");
+
         this.playBtn = document.getElementById("playBtn");
+        this.restartBtn = document.getElementById("restartBtn");
 
         this.GAME_STATE = {
             MENU: "menu",
@@ -19,213 +23,87 @@ class Game {
         this.velocityX = -2;
         this.gravity = 0.5;
 
-        this.pipeWidth = 40;
-        this.pipeGap = 200;
+        this.pipeWidth = 50;
+        this.pipeGap = 170;
         this.pipeArray = [];
         this.pipeIntervalId = null;
 
         this.score = 0;
-
-        this.logo = {
-            x: this.boardWidth / 2 - 150 / 2,
-            y: this.boardHeight / 5,
-            width: 150,
-            height: 100
-        };
-
-        this.playButton = {
-            x: this.boardWidth / 2 - 115.5 / 2,
-            y: this.boardHeight / 2 - 64 / 2,
-            width: 115,
-            height: 64
-        };
+        this.highScore = localStorage.getItem("flappyHighScore") || 0;
 
         this.bird = {
-            x: 50,
+            x: 60,
             y: this.birdY,
             width: 40,
             height: 30
         };
 
+        this.inputLocked = false;
+
         this.loadAssets();
-        this.init();
+        this.addEvents();
+
+        requestAnimationFrame(this.update.bind(this));
     }
 
     loadAssets() {
+        this.backgroundImg = new Image();
+        this.backgroundImg.src = "./Imagenes/fondomejorado.png";
+
         this.birdImg = new Image();
-        this.birdImg.src = "./imagenes/doberman.png";
+        this.birdImg.src = "./Imagenes/doberman.png";
 
         this.topPipeImg = new Image();
-        this.topPipeImg.src = "./imagenes/huesoalto.png";
+        this.topPipeImg.src = "./Imagenes/toppipe.png";
 
         this.bottomPipeImg = new Image();
-        this.bottomPipeImg.src = "./imagenes/huesoalto.png";
+        this.bottomPipeImg.src = "./Imagenes/bottompipe.png";
 
         this.flappyBirdTextImg = new Image();
-        this.flappyBirdTextImg.src = "./imagenes/Logomejorado.png";
+        this.flappyBirdTextImg.src = "./Imagenes/Logomejorado.png";
 
         this.gameOverImg = new Image();
-        this.gameOverImg.src = "./imagenes/flappy-gameover.png";
+        this.gameOverImg.src = "./Imagenes/flappy-gameover.png";
 
-        this.jumpSound = new Audio("Sonidos/salto.mp3");
-        this.pointSound = new Audio("Sonidos/punto.mp3");
-        this.hitSound = new Audio("Sonidos/golpe.mp3");
+        this.jumpSound = new Audio("./Sonidos/salto.mp3");
+        this.pointSound = new Audio("./Sonidos/punto.mp3");
+        this.hitSound = new Audio("./Sonidos/golpe.mp3");
     }
 
-    init() {
-        window.onload = () => {
+    addEvents() {
+        document.addEventListener("keydown", (e) => {
+            if (e.code === "Space") this.handleJump();
+        });
 
-            this.board = document.getElementById("board");
-            this.board.height = this.boardHeight;
-            this.board.width = this.boardWidth;
-            this.context = this.board.getContext("2d");
+        this.board.addEventListener("touchstart", (e) => {
+            e.preventDefault();
+            this.handleJump();
+        }, { passive: false });
 
-            document.addEventListener("keydown", this.handleKeyDown.bind(this));
-            this.board.addEventListener("touchstart", this.handleTouch.bind(this), { passive: false });
+        this.playBtn.addEventListener("click", () => {
+            if (this.currentState === this.GAME_STATE.MENU) this.startGame();
+        });
 
-            requestAnimationFrame(this.update.bind(this));
-
-            this.playBtn.addEventListener("click", () => {
-                if (this.currentState === this.GAME_STATE.MENU){
-                    this.startGame();
-                }
-            });
-        };
-
-        this.restartBtn = document.getElementById("restartBtn");
         this.restartBtn.addEventListener("click", () => {
             this.resetGame();
-            this.currentState = this.GAME_STATE.MENU;
         });
+
+        const unlockAudio = () => {
+            this.jumpSound.play().then(() => {
+                this.jumpSound.pause();
+                this.jumpSound.currentTime = 0;
+            }).catch(() => {});
+
+            window.removeEventListener("click", unlockAudio);
+            window.removeEventListener("touchstart", unlockAudio);
+        };
+
+        window.addEventListener("click", unlockAudio);
+        window.addEventListener("touchstart", unlockAudio);
     }
 
-    update() {
-        requestAnimationFrame(this.update.bind(this));
-        this.context.clearRect(0, 0, this.board.width, this.board.height);
-
-        switch (this.currentState) {
-            case this.GAME_STATE.MENU:
-                this.renderMenu();
-                break;
-            case this.GAME_STATE.PLAYING:
-                this.renderGame();
-                break;
-            case this.GAME_STATE.GAME_OVER:
-                this.renderGameOver();
-                break;
-        }
-    }
-
-    renderMenu() {
-        if (this.backgroundImg.complete) {
-            this.context.drawImage(this.backgroundImg, 0, 0, this.boardWidth, this.boardHeight);
-        }
-
-        if (this.flappyBirdTextImg.complete) {
-            let scaledWidth = this.logo.width;
-            let scaledHeight = (this.flappyBirdTextImg.height / this.flappyBirdTextImg.width) * scaledWidth;
-            this.context.drawImage(this.flappyBirdTextImg, this.logo.x, this.logo.y, scaledWidth, scaledHeight);
-        }
-
-        this.playBtn.style.display = "block";
-    }
-
-    renderGame() {
-        if(this.backgroundImg.complete){
-            this.context.drawImage(this.backgroundImg, 0, 0, this.boardWidth, this.boardHeight);
-        }
-
-        this.velocityY += this.gravity;
-        this.bird.y = Math.max(this.bird.y + this.velocityY, 0);
-        this.context.drawImage(this.birdImg, this.bird.x, this.bird.y, this.bird.width, this.bird.height);
-
-        if (this.bird.y > this.board.height) {
-            this.currentState = this.GAME_STATE.GAME_OVER;
-        }
-
-        for (let i = 0; i < this.pipeArray.length; i++) {
-            const pipe = this.pipeArray[i];
-            pipe.x += this.velocityX;
-
-            // ---- DIBUJO DE TUBOS (UNO VOLTEADO) ----
-            if (pipe.isTop) {
-                this.context.save();
-                this.context.translate(pipe.x + pipe.width / 2, pipe.y + pipe.height / 2);
-                this.context.rotate(Math.PI);
-                this.context.drawImage(
-                    pipe.img,
-                    -pipe.width / 2,
-                    -pipe.height / 2,
-                    pipe.width,
-                    pipe.height
-                );
-                this.context.restore();
-            } else {
-                this.context.drawImage(pipe.img, pipe.x, pipe.y, pipe.width, pipe.height);
-            }
-
-            if(i % 2 === 0 && !pipe.passed && this.bird.x > pipe.x + pipe.width) {
-                this.score += 1;
-                pipe.passed = true;
-                this.pointSound.play().catch(() => {})
-            }
-
-            if (this.detectCollision(this.bird, pipe)) {
-                this.hitSound.play().catch(() => {});
-                this.currentState = this.GAME_STATE.GAME_OVER;
-                break;
-            }
-        }
-
-        while (this.pipeArray.length > 0 && this.pipeArray[0].x < -this.pipeWidth) {
-            this.pipeArray.shift();
-        }
-
-        this.context.fillStyle = "black";
-        this.context.font = "45px sans-serif";
-        this.context.textAlign = "left";
-        this.context.fillText(Math.floor(this.score), 5, 45);
-    }
-
-    renderGameOver() {
-        if(this.backgroundImg.complete) {
-            this.context.drawImage(this.backgroundImg, 0, 0, this.boardWidth, this.boardHeight);
-        }
-
-        if (this.gameOverImg.complete) {
-            let imgWidth = 300;
-            let imgHeight = 80;
-            let x = (this.boardWidth - imgWidth) / 2;
-            let y = this.boardHeight / 3;
-
-            this.context.drawImage(this.gameOverImg, x, y, imgWidth, imgHeight);
-
-            this.context.fillStyle = "black";
-            this.context.font = "30px sans-serif";
-            this.context.textAlign = "center";
-            this.context.fillText(`Score: ${Math.floor(this.score)}`, this.boardWidth / 2, y + 120);
-        }
-
-        this.playBtn.style.display = "none";
-        this.restartBtn.style.display = "block";
-    }
-
-    handleKeyDown(e) {
-        if (e.code === "Space") {
-            if (this.currentState === this.GAME_STATE.MENU) {
-                this.startGame();
-            } else if (this.currentState === this.GAME_STATE.GAME_OVER) {
-                this.resetGame();
-                this.currentState = this.GAME_STATE.MENU;
-            } else if (this.currentState === this.GAME_STATE.PLAYING) {
-                this.velocityY = -8;
-                this.jumpSound.play().catch(() => {});
-            }
-        }
-    }
-
-    handleTouch(e) {
-        e.preventDefault();
+    handleJump() {
+        if (this.inputLocked) return;
 
         if (this.currentState === this.GAME_STATE.MENU) {
             this.startGame();
@@ -234,7 +112,6 @@ class Game {
             this.jumpSound.play().catch(() => {});
         } else if (this.currentState === this.GAME_STATE.GAME_OVER) {
             this.resetGame();
-            this.currentState = this.GAME_STATE.MENU;
         }
     }
 
@@ -244,59 +121,130 @@ class Game {
         this.velocityY = 0;
         this.pipeArray = [];
         this.score = 0;
+
         this.playBtn.style.display = "none";
+        this.restartBtn.style.display = "none";
 
         if (this.pipeIntervalId) clearInterval(this.pipeIntervalId);
         this.pipeIntervalId = setInterval(() => this.placePipes(), 1500);
-
-        this.restartBtn.style.display = "none";
     }
 
     resetGame() {
+        this.currentState = this.GAME_STATE.MENU;
         this.bird.y = this.birdY;
         this.pipeArray = [];
         this.score = 0;
+
+        clearInterval(this.pipeIntervalId);
+        this.playBtn.style.display = "block";
         this.restartBtn.style.display = "none";
     }
 
     placePipes() {
-        this.createPipes();
-    }
+        const minTop = 50;
+        const maxTop = this.boardHeight - this.pipeGap - 50;
+        const topHeight = Math.floor(Math.random() * (maxTop - minTop)) + minTop;
 
-    createPipes() {
-        let maxTopPipeHeight = this.boardHeight - this.pipeGap - 50;
-        let topPipeHeight = Math.floor(Math.random() * maxTopPipeHeight);
-        let bottomPipeHeight = this.boardHeight - topPipeHeight - this.pipeGap;
+        const bottomHeight = this.boardHeight - topHeight - this.pipeGap;
 
-        let topPipe = {
+        this.pipeArray.push({
             x: this.boardWidth,
-            y: topPipeHeight,
+            y: 0,
             width: this.pipeWidth,
-            height: topPipeHeight,
+            height: topHeight,
             img: this.topPipeImg,
-            passed: false,
-            isTop: true
-        };
+            passed: false
+        });
 
-        let bottomPipe = {
+        this.pipeArray.push({
             x: this.boardWidth,
-            y: topPipeHeight + this.pipeGap,
+            y: topHeight + this.pipeGap,
             width: this.pipeWidth,
-            height: bottomPipeHeight,
+            height: bottomHeight,
             img: this.bottomPipeImg,
-            passed: false,
-            isTop: false
-        };
-
-        this.pipeArray.push(topPipe, bottomPipe);
+            passed: false
+        });
     }
 
-    detectCollision(rect1, rect2) {
+    update() {
+        requestAnimationFrame(this.update.bind(this));
+        this.context.clearRect(0, 0, this.boardWidth, this.boardHeight);
+
+        if (this.backgroundImg.complete) {
+            this.context.drawImage(this.backgroundImg, 0, 0, this.boardWidth, this.boardHeight);
+        }
+
+        if (this.currentState === this.GAME_STATE.MENU) {
+            if (this.flappyBirdTextImg.complete) {
+                this.context.drawImage(this.flappyBirdTextImg, 60, 100, 240, 100);
+            }
+            this.playBtn.style.display = "block";
+            return;
+        }
+
+        if (this.currentState === this.GAME_STATE.PLAYING) {
+            this.velocityY += this.gravity;
+            this.bird.y += this.velocityY;
+
+            this.context.drawImage(this.birdImg, this.bird.x, this.bird.y, this.bird.width, this.bird.height);
+
+            for (let i = 0; i < this.pipeArray.length; i++) {
+                const pipe = this.pipeArray[i];
+                pipe.x += this.velocityX;
+                this.context.drawImage(pipe.img, pipe.x, pipe.y, pipe.width, pipe.height);
+
+                if (!pipe.passed && i % 2 === 0 && this.bird.x > pipe.x + pipe.width) {
+                    this.score++;
+                    pipe.passed = true;
+                    this.pointSound.play().catch(() => {});
+                }
+
+                if (this.detectCollision(this.bird, pipe)) {
+                    this.hitSound.play().catch(() => {});
+                    this.gameOver();
+                }
+            }
+
+            this.pipeArray = this.pipeArray.filter(p => p.x > -this.pipeWidth);
+
+            if (this.bird.y + this.bird.height > this.boardHeight || this.bird.y < 0) {
+                this.gameOver();
+            }
+
+            this.context.fillStyle = "black";
+            this.context.font = "40px Arial";
+            this.context.fillText(this.score, 10, 40);
+        }
+
+        if (this.currentState === this.GAME_STATE.GAME_OVER) {
+            if (this.gameOverImg.complete) {
+                this.context.drawImage(this.gameOverImg, 40, 200, 280, 80);
+            }
+
+            this.context.fillStyle = "black";
+            this.context.font = "30px Arial";
+            this.context.fillText(`Puntos: ${this.score}`, 90, 330);
+
+            this.restartBtn.style.display = "block";
+            this.restartBtn.style.left = "50%";
+            this.restartBtn.style.top = "60%";
+            this.restartBtn.style.transform = "translate(-50%, -50%)";
+        }
+    }
+
+    gameOver() {
+        this.currentState = this.GAME_STATE.GAME_OVER;
+        clearInterval(this.pipeIntervalId);
+        this.inputLocked = true;
+        setTimeout(() => this.inputLocked = false, 500);
+    }
+
+    detectCollision(a, b) {
         return (
-            rect1.x < rect2.x + rect2.width &&
-            rect1.x + rect1.width > rect2.x &&
-            rect1.y < rect2.y + rect2.height &&
-            rect1.y + rect1.height > rect2.y
+            a.x < b.x + b.width &&
+            a.x + a.width > b.x &&
+            a.y < b.y + b.height &&
+            a.y + a.height > b.y
         );
     }
 }

@@ -67,9 +67,9 @@ class Game {
         this.gameOverImg = new Image();
         this.gameOverImg.src = "./imagenes/flappy-gameover.png";
 
-        this.jumpSound = new Audio("./sonidos/salto.mp3");
-        this.pointSound = new Audio("./sonidos/punto.mp3");
-        this.hitSound = new Audio("./sonidos/golpe.mp3");
+        this.jumpSound = new Audio("Sonidos/salto.mp3");
+        this.pointSound = new Audio("Sonidos/punto.mp3");
+        this.hitSound = new Audio("Sonidos/golpe.mp3");
     }
 
     init() {

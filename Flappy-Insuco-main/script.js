@@ -29,7 +29,6 @@ class Game {
         this.pipeIntervalId = null;
 
         this.score = 0;
-        this.highScore = localStorage.getItem("flappyHighScore") || 0;
 
         this.bird = {
             x: 60,
@@ -73,6 +72,10 @@ class Game {
     addEvents() {
         document.addEventListener("keydown", (e) => {
             if (e.code === "Space") this.handleJump();
+        });
+
+        this.board.addEventListener("mousedown", () => {
+            this.handleJump();
         });
 
         this.board.addEventListener("touchstart", (e) => {
@@ -144,7 +147,6 @@ class Game {
         const minTop = 50;
         const maxTop = this.boardHeight - this.pipeGap - 50;
         const topHeight = Math.floor(Math.random() * (maxTop - minTop)) + minTop;
-
         const bottomHeight = this.boardHeight - topHeight - this.pipeGap;
 
         this.pipeArray.push({
@@ -153,7 +155,8 @@ class Game {
             width: this.pipeWidth,
             height: topHeight,
             img: this.topPipeImg,
-            passed: false
+            passed: false,
+            isTop: true
         });
 
         this.pipeArray.push({
@@ -162,7 +165,8 @@ class Game {
             width: this.pipeWidth,
             height: bottomHeight,
             img: this.bottomPipeImg,
-            passed: false
+            passed: false,
+            isTop: false
         });
     }
 
@@ -188,12 +192,11 @@ class Game {
 
             this.context.drawImage(this.birdImg, this.bird.x, this.bird.y, this.bird.width, this.bird.height);
 
-            for (let i = 0; i < this.pipeArray.length; i++) {
-                const pipe = this.pipeArray[i];
+            for (const pipe of this.pipeArray) {
                 pipe.x += this.velocityX;
                 this.context.drawImage(pipe.img, pipe.x, pipe.y, pipe.width, pipe.height);
 
-                if (!pipe.passed && i % 2 === 0 && this.bird.x > pipe.x + pipe.width) {
+                if (pipe.isTop && !pipe.passed && this.bird.x > pipe.x + pipe.width) {
                     this.score++;
                     pipe.passed = true;
                     this.pointSound.play().catch(() => {});
@@ -211,24 +214,27 @@ class Game {
                 this.gameOver();
             }
 
-            this.context.fillStyle = "black";
-            this.context.font = "40px Arial";
-            this.context.fillText(this.score, 10, 40);
+            this.context.fillStyle = "white";
+            this.context.font = "bold 42px Arial";
+            this.context.shadowColor = "black";
+            this.context.shadowBlur = 4;
+            this.context.fillText(this.score, 20, 50);
+            this.context.shadowBlur = 0;
         }
 
         if (this.currentState === this.GAME_STATE.GAME_OVER) {
+            this.context.fillStyle = "rgba(0,0,0,0.55)";
+            this.context.fillRect(0, 0, this.boardWidth, this.boardHeight);
+
             if (this.gameOverImg.complete) {
                 this.context.drawImage(this.gameOverImg, 40, 200, 280, 80);
             }
 
-            this.context.fillStyle = "black";
-            this.context.font = "30px Arial";
-            this.context.fillText(`Puntos: ${this.score}`, 90, 330);
+            this.context.fillStyle = "white";
+            this.context.font = "28px Arial";
+            this.context.fillText(`Puntos: ${this.score}`, 95, 330);
 
             this.restartBtn.style.display = "block";
-            this.restartBtn.style.left = "50%";
-            this.restartBtn.style.top = "60%";
-            this.restartBtn.style.transform = "translate(-50%, -50%)";
         }
     }
 

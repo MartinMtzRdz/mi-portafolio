@@ -1,3 +1,9 @@
+canvas {
+  width: 100vw;
+  max-width: 360px;
+  height: auto;
+}
+
 body {
     font-family: 'Courier New', Courier, monospace;
     text-align: center;

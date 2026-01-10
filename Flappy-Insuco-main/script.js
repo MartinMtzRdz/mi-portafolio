@@ -2,10 +2,8 @@ class Game {
     constructor() {
         this.boardWidth = 360;
         this.boardHeight = 640;
-
         this.backgroundImg = new Image();
         this.backgroundImg.src = "./imagenes/fondomejorado.png";
-
         this.inputLocked = false;
         this.playBtn = document.getElementById("playBtn");
 
@@ -63,38 +61,19 @@ class Game {
         this.bottomPipeImg = new Image();
         this.bottomPipeImg.src = "./imagenes/huesoalto.png";
 
-        this.playButtonImg = new Image();
-        this.playButtonImg.src = "./imagenes/flappyBirdPlayButton.png";
-
         this.flappyBirdTextImg = new Image();
         this.flappyBirdTextImg.src = "./imagenes/Logomejorado.png";
 
         this.gameOverImg = new Image();
         this.gameOverImg.src = "./imagenes/flappy-gameover.png";
 
-        this.jumpSound = new Audio("./Sonidos/salto.mp3");
-        this.pointSound = new Audio("./Sonidos/punto.mp3");
-        this.hitSound = new Audio("./Sonidos/golpe.mp3");
+        this.jumpSound = new Audio("./sonidos/salto.mp3");
+        this.pointSound = new Audio("./sonidos/punto.mp3");
+        this.hitSound = new Audio("./sonidos/golpe.mp3");
     }
 
     init() {
         window.onload = () => {
-
-            const unlockAudio = () => {
-                if (this.jumpSound) {
-                    this.jumpSound.play().then(() => {
-                        this.jumpSound.pause();
-                        this.jumpSound.currentTime = 0;
-                    }).catch(() => {});
-                }
-                window.removeEventListener("click", unlockAudio);
-                window.removeEventListener("keydown", unlockAudio);
-                window.removeEventListener("touchstart", unlockAudio);
-            };
-
-            window.addEventListener("click", unlockAudio);
-            window.addEventListener("keydown", unlockAudio);
-            window.addEventListener("touchstart", unlockAudio);
 
             this.board = document.getElementById("board");
             this.board.height = this.boardHeight;
@@ -107,7 +86,7 @@ class Game {
             requestAnimationFrame(this.update.bind(this));
 
             this.playBtn.addEventListener("click", () => {
-                if (this.currentState === this.GAME_STATE.MENU) {
+                if (this.currentState === this.GAME_STATE.MENU){
                     this.startGame();
                 }
             });
@@ -152,16 +131,13 @@ class Game {
     }
 
     renderGame() {
-        if (this.backgroundImg.complete) {
+        if(this.backgroundImg.complete){
             this.context.drawImage(this.backgroundImg, 0, 0, this.boardWidth, this.boardHeight);
         }
 
         this.velocityY += this.gravity;
         this.bird.y = Math.max(this.bird.y + this.velocityY, 0);
-
-        if (this.birdImg.complete) {
-            this.context.drawImage(this.birdImg, this.bird.x, this.bird.y, this.bird.width, this.bird.height);
-        }
+        this.context.drawImage(this.birdImg, this.bird.x, this.bird.y, this.bird.width, this.bird.height);
 
         if (this.bird.y > this.board.height) {
             this.currentState = this.GAME_STATE.GAME_OVER;
@@ -171,14 +147,27 @@ class Game {
             const pipe = this.pipeArray[i];
             pipe.x += this.velocityX;
 
-            if (pipe.img.complete) {
+            // ---- DIBUJO DE TUBOS (UNO VOLTEADO) ----
+            if (pipe.isTop) {
+                this.context.save();
+                this.context.translate(pipe.x + pipe.width / 2, pipe.y + pipe.height / 2);
+                this.context.rotate(Math.PI);
+                this.context.drawImage(
+                    pipe.img,
+                    -pipe.width / 2,
+                    -pipe.height / 2,
+                    pipe.width,
+                    pipe.height
+                );
+                this.context.restore();
+            } else {
                 this.context.drawImage(pipe.img, pipe.x, pipe.y, pipe.width, pipe.height);
             }
 
-            if (i % 2 === 0 && !pipe.passed && this.bird.x > pipe.x + pipe.width) {
+            if(i % 2 === 0 && !pipe.passed && this.bird.x > pipe.x + pipe.width) {
                 this.score += 1;
                 pipe.passed = true;
-                this.pointSound.play().catch(() => {});
+                this.pointSound.play().catch(() => {})
             }
 
             if (this.detectCollision(this.bird, pipe)) {
@@ -199,7 +188,7 @@ class Game {
     }
 
     renderGameOver() {
-        if (this.backgroundImg.complete) {
+        if(this.backgroundImg.complete) {
             this.context.drawImage(this.backgroundImg, 0, 0, this.boardWidth, this.boardHeight);
         }
 
@@ -211,29 +200,17 @@ class Game {
 
             this.context.drawImage(this.gameOverImg, x, y, imgWidth, imgHeight);
 
-            let scoreText = `Score: ${Math.floor(this.score)}`;
-            if (this.score > this.highScore) {
-                this.highScore = this.score;
-                localStorage.setItem("flappyHighScore", this.highScore);
-            }
-
             this.context.fillStyle = "black";
             this.context.font = "30px sans-serif";
             this.context.textAlign = "center";
-            this.context.fillText(scoreText, this.boardWidth / 2, y + imgHeight + 40);
+            this.context.fillText(`Score: ${Math.floor(this.score)}`, this.boardWidth / 2, y + 120);
         }
 
         this.playBtn.style.display = "none";
-
         this.restartBtn.style.display = "block";
-        this.restartBtn.style.left = "50%";
-        this.restartBtn.style.transform = "translate(-50%, -500%)";
-        this.restartBtn.style.top = `${this.boardHeight / 2 + 100}px`;
     }
 
     handleKeyDown(e) {
-        if (this.inputLocked) return;
-
         if (e.code === "Space") {
             if (this.currentState === this.GAME_STATE.MENU) {
                 this.startGame();
@@ -248,17 +225,16 @@ class Game {
     }
 
     handleTouch(e) {
-        if (this.inputLocked) return;
         e.preventDefault();
 
         if (this.currentState === this.GAME_STATE.MENU) {
             this.startGame();
-        } else if (this.currentState === this.GAME_STATE.GAME_OVER) {
-            this.resetGame();
-            this.currentState = this.GAME_STATE.MENU;
         } else if (this.currentState === this.GAME_STATE.PLAYING) {
             this.velocityY = -8;
             this.jumpSound.play().catch(() => {});
+        } else if (this.currentState === this.GAME_STATE.GAME_OVER) {
+            this.resetGame();
+            this.currentState = this.GAME_STATE.MENU;
         }
     }
 
@@ -268,7 +244,6 @@ class Game {
         this.velocityY = 0;
         this.pipeArray = [];
         this.score = 0;
-        this.highScore = localStorage.getItem("flappyHighScore") || 0;
         this.playBtn.style.display = "none";
 
         if (this.pipeIntervalId) clearInterval(this.pipeIntervalId);
@@ -295,11 +270,12 @@ class Game {
 
         let topPipe = {
             x: this.boardWidth,
-            y: 0,
+            y: topPipeHeight,
             width: this.pipeWidth,
             height: topPipeHeight,
             img: this.topPipeImg,
-            passed: false
+            passed: false,
+            isTop: true
         };
 
         let bottomPipe = {
@@ -308,7 +284,8 @@ class Game {
             width: this.pipeWidth,
             height: bottomPipeHeight,
             img: this.bottomPipeImg,
-            passed: false
+            passed: false,
+            isTop: false
         };
 
         this.pipeArray.push(topPipe, bottomPipe);
